@@ -1,7 +1,10 @@
 package com.example.judgeeaseadmin.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.judgeeaseadmin.model.Competition
+import com.example.judgeeaseadmin.repository.CompetitionRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.Dispatchers
@@ -10,7 +13,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
-class AppViewModel : ViewModel() {
+class AppViewModel(val repository: CompetitionRepository = CompetitionRepository()) : ViewModel() {
 
     private val auth: FirebaseAuth = FirebaseAuth.getInstance()
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -18,8 +21,42 @@ class AppViewModel : ViewModel() {
     private val _authState = MutableStateFlow<AuthState>(AuthState.Initial)
     val authState: StateFlow<AuthState> = _authState
 
+    private val _competitions = MutableStateFlow<List<Competition>>(emptyList())
+    val competitions: StateFlow<List<Competition>> = _competitions
+
     init {
+        observeAuthStateAndLoadData()
         checkExistingAdmin()
+    }
+
+    private fun observeAuthStateAndLoadData() {
+        viewModelScope.launch { // Launch in viewModelScope
+            authState.collect { state ->
+                if (state is AuthState.Authenticated) {
+                    // User is authenticated, now it's safe to fetch competitions
+                    fetchCompetitions()
+                } else {
+                    // User is not authenticated, clear competitions or handle as needed
+                    _competitions.value = emptyList()
+                }
+            }
+        }
+    }
+
+
+    private fun fetchCompetitions() {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                repository.getCompetitions().collect { comps ->
+                    _competitions.value = comps
+                }
+            } catch (e: Exception) {
+                // Log the exception, especially if it's a FirestoreException
+                Log.e("AppViewModel", "Error fetching competitions", e)
+                // Optionally update a UI state to show an error message
+                // _competitionsError.value = "Failed to load competitions: ${e.message}"
+            }
+        }
     }
 
     private fun checkExistingAdmin() {
@@ -27,7 +64,7 @@ class AppViewModel : ViewModel() {
         if (currentUser == null) {
             _authState.value = AuthState.Unauthenticated
         } else {
-            viewModelScope.launch {
+            viewModelScope.launch(Dispatchers.IO) {
                 fetchAdminData(currentUser.uid)
             }
         }
@@ -92,6 +129,22 @@ class AppViewModel : ViewModel() {
             is AuthState.Authenticated -> currentState.name
             else -> "Unknown Admin"
         }
+    }
+
+    fun createCompetition(title: String, desc: String, venue: String, organizer: String, startDateTime: Long, endDateTime: Long) {
+        viewModelScope.launch { repository.createCompetition(title, desc, venue, organizer, startDateTime, endDateTime) }
+    }
+
+    fun updateCompetition(id: String, title: String, desc: String) {
+        viewModelScope.launch { repository.updateCompetition(id, title, desc) }
+    }
+
+    fun addTeamToCompetition(id: String, team: String) {
+        viewModelScope.launch { repository.addTeam(id, team) }
+    }
+
+    fun deleteCompetition(id: String) {
+        viewModelScope.launch { repository.deleteCompetition(id) }
     }
 }
 

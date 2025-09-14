@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.example.judgeeaseadmin.screens.CompetitionDetailScreen
 import com.example.judgeeaseadmin.screens.HomeScreen
 import com.example.judgeeaseadmin.screens.LoginScreen
 import com.example.judgeeaseadmin.screens.SignUpScreen
@@ -27,6 +28,10 @@ fun AppNavigation(modifier: Modifier = Modifier, authViewModel: AppViewModel){
         }
         composable("home") {
             HomeScreen(modifier,navController,authViewModel)
+        }
+        composable("competition/{compId}") { backStackEntry ->
+            val compId = backStackEntry.arguments?.getString("compId") ?: ""
+            CompetitionDetailScreen(compId, authViewModel)
         }
     })
 }
