@@ -31,7 +31,7 @@ fun AppNavigation(modifier: Modifier = Modifier, authViewModel: AppViewModel){
         }
         composable("competition/{compId}") { backStackEntry ->
             val compId = backStackEntry.arguments?.getString("compId") ?: ""
-            CompetitionDetailScreen(compId, authViewModel)
+            CompetitionDetailScreen(compId, authViewModel,navController)
         }
     })
 }
